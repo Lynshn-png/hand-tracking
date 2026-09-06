@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Heart Trail by LYNSHN</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; background: #000; overflow: hidden; }
+    video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    #startScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #000 0%, #1a0033 100%); z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #ff1493; }
+    #startScreen h1 { font-size: 50px; margin-bottom: 20px; text-shadow: 0 0 20px #ff1493; }
+    #startScreen input { padding: 15px; font-size: 24px; border-radius: 10px; border: 2px solid #ff1493; background: #222; color: white; text-align: center; margin: 20px; width: 300px; }
+    #startScreen button { padding: 15px 40px; font-size: 20px; border: none; border-radius: 10px; background: linear-gradient(90deg, #ff1493, #ff69b4); color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    #startScreen button:hover { transform: scale(1.05); }
+    #status { position: absolute; top: 20px; left: 20px; color: white; background: rgba(0,0,0,0.7); padding: 10px 15px; border-radius: 10px; z-index: 999; font-family: Arial; }
+  </style>
+</head>
+<body>
+  <div id="startScreen">
+    <h1>❤️ Heart Trail ❤️</h1>
+    <input type="text" id="nameInput" value="LYNSHN" maxlength="15" placeholder="Masukan Namamu">
+    <button onclick="startCamera()">MULAI</button>
+  </div>
+
+  <div id="status">Loading AI...</div>
+  <video id="video" autoplay muted playsinline></video>
+  <canvas id="canvas"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const status = document.getElementById('status');
+    let trails = [];
+    let userName = "LYNSHN";
+
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+
+    const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+    hands.setOptions({maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7});
+    
+    hands.onResults((results) => {
+      status.innerText = results.multiHandLandmarks ? "Tangan Terdeteksi!" : "Tunjukin telunjuk";
+      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+      if (results.multiHandLandmarks) {
+        for (const landmarks of results.multiHandLandmarks) {
+          const x = landmarks[8].x * canvas.width; 
+          const y = landmarks[8].y * canvas.height;
+          // LIFE 60 = LEBIH LAMA MUNCULNYA
+          trails.push({x, y, life: 60, text: userName.toUpperCase()});
+        }
+      }
+
+      for(let i = trails.length - 1; i >= 0; i--) {
+        let t = trails[i];
+
+        // HATI
+        ctx.save(); 
+        ctx.translate(t.x, t.y);
+        ctx.beginPath(); 
+        ctx.moveTo(0,-5);
+        ctx.bezierCurveTo(-10,-15,-20,5,0,15);
+        ctx.bezierCurveTo(20,5,10,-15,0,-5);
+        ctx.fillStyle = `rgba(255,20,147,${t.life/60})`; // dibagi 60 juga
+        ctx.shadowColor = '#ff1493'; 
+        ctx.shadowBlur = 25; 
+        ctx.fill(); 
+        ctx.restore();
+
+        // TEKS
+        ctx.save(); 
+        ctx.translate(t.x+15, t.y); 
+        ctx.scale(-1,1);
+        ctx.font = "bold 28px Arial"; 
+        ctx.fillStyle = `rgba(255,255,255,${t.life/60})`; // dibagi 60 juga
+        ctx.shadowColor = '#fff'; 
+        ctx.shadowBlur = 10;
+        ctx.fillText(t.text, 0, 0); 
+        ctx.restore();
+
+        t.life--; 
+        if(t.life <= 0) trails.splice(i, 1);
+      }
+    });
+
+    async function startCamera() {
+      userName = document.getElementById('nameInput').value || "LYNSHN";
+      document.getElementById('startScreen').style.display = 'none';
+      camera.start();
+    }
+
+    const camera = new Camera(video, {
+      onFrame: async () => { await hands.send({image: video}); },
+      width: 1280, height: 720
+    });
+  </script>
+</body>
+</html>
